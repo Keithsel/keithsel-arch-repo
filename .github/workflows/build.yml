@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'pkgbuilds/**'
+      - 'PKGBUILDs/**'
 
 jobs:
   build:
@@ -32,7 +32,7 @@ jobs:
         run: |
           chown -R builder:builder .
           mkdir -p x86_64
-          for pkg in pkgbuilds/*/; do
+          for pkg in PKGBUILDs/*/; do
             cd "$pkg"
             sudo -u builder makepkg -sr --sign --noconfirm
             mv *.pkg.tar.zst *.pkg.tar.zst.sig ../../x86_64/
