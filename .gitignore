@@ -1,0 +1,8 @@
+# Build artifacts
+PKGBUILDS/*/src/
+PKGBUILDS/*/pkg/
+PKGBUILDS/*/dekl-*
+PKGBUILDS/*/dekl-git/
+
+# Keep only PKGBUILDs
+!PKGBUILDS/*/PKGBUILD

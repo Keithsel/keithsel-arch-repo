@@ -1,0 +1,54 @@
+name: Build
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'pkgbuilds/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+
+    steps:
+      - name: Setup
+        run: |
+          pacman -Syu --noconfirm base-devel git gnupg
+          useradd -m builder
+          echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+      - uses: actions/checkout@v4
+
+      - name: Import GPG
+        run: |
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --import --batch
+          KEY_ID=$(gpg --list-secret-keys --keyid-format SHORT | grep sec | awk '{print $2}' | cut -d'/' -f2)
+          echo "GPGKEY=\"$KEY_ID\"" >> /etc/makepkg.conf
+          echo "PACKAGER=\"Keithsel <keithsel@disroot.org>\"" >> /etc/makepkg.conf
+          gpg --armor --export $KEY_ID > keithsel.gpg
+
+      - name: Build packages
+        run: |
+          chown -R builder:builder .
+          mkdir -p x86_64
+          for pkg in pkgbuilds/*/; do
+            cd "$pkg"
+            sudo -u builder makepkg -sr --sign --noconfirm
+            mv *.pkg.tar.zst *.pkg.tar.zst.sig ../../x86_64/
+            cd ../..
+          done
+
+      - name: Update database
+        run: |
+          cd x86_64
+          rm -f keithsel.db* keithsel.files* 2>/dev/null || true
+          repo-add --verify --sign keithsel.db.tar.gz *.pkg.tar.zst
+
+      - name: Push
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add -A
+          git commit -m "Build $(date -u +%Y-%m-%d)" || exit 0
+          git push
